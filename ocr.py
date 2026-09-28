@@ -10,11 +10,12 @@ import numpy as np
 from rapidfuzz import fuzz, process
 
 # engine อ่านตัวอักษร — สลับได้ที่บรรทัด import บรรทัดเดียว ขอแค่มี recognize(BGR) → (text, score)
-# ตอนนี้ใช้โมเดลทางการ th_PP-OCRv5_mobile_rec (rec_onnx.py ตัวที่ fine-tune เองแพ้ไปแล้ว ลบทิ้ง
-# อยู่ใน git history ถ้าอยากได้กลับมา)
-# ตัว TextRecognition(...) อยู่ใน rec_paddle._load() — สร้างตอนเรียกใช้ครั้งแรก ไม่ใช่ตอน import
+# ตอนนี้ใช้ th_PP-OCRv5_mobile_rec ที่ fine-tune แล้ว แปลงเป็น ONNX อยู่ที่ model/th_plate_rec/rec.onnx
+# ถอยกลับไปใช้ paddle ได้ด้วยการเปลี่ยนบรรทัดล่างเป็น `import rec_paddle as rec` (แต่ paddlepaddle
+# 3.0.0 บน Pi อ่าน PIR ที่ export จาก 3.3.0 ไม่ได้ — ดูเหตุผลเต็มใน rec_onnx.py)
+# session ถูกสร้างใน rec_onnx._load() ตอนเรียกใช้ครั้งแรก ไม่ใช่ตอน import
 # เพราะ Run_v2 --check / ocr.py --check ต้องรันได้โดยไม่มีโมเดล
-import rec_paddle as rec
+import rec_onnx as rec
 
 THAI_MAP = {
     "@": "ฮ",

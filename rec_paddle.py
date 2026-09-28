@@ -1,4 +1,4 @@
-"""อ่านตัวอักษรจาก crop ป้าย ด้วยโมเดลทางการ th_PP-OCRv5_mobile_rec
+"""อ่านตัวอักษรจาก crop ป้าย ด้วยโมเดล th_PP-OCRv5_mobile_rec ที่ fine-tune กับป้ายไทย
 
 อินเทอร์เฟซคือ recognize(BGR) → (text, score) — เขียน engine ตัวอื่นให้หน้าตาเหมือนนี้
 แล้วแก้บรรทัด import ใน ocr.py บรรทัดเดียวก็สลับได้
@@ -12,13 +12,16 @@
 requirements.txt (freeze จากเครื่อง dev x86) ปักไว้ 3.3.0 — ค่าคนละตัวโดยตั้งใจ
 ลงบน Pi แล้วเจอ segfault ให้ลด paddlepaddle ลงมา 3.0.0 ก่อนเป็นอย่างแรก
 
-โมเดลดาวน์โหลดครั้งแรกครั้งเดียว แล้ว cache ไว้ที่ ~/.paddlex/official_models/
-รันครั้งแรกต้องมีเน็ต
+น้ำหนักโมเดลอยู่ใน model/th_plate_rec/ ในรีโปนี้ (ก๊อปมาจาก Raspberry_runtime_detection/
+model_ocr/inference_final_1/) — ไม่ต้องมีเน็ต ไม่ใช้ตัวทางการใน ~/.paddlex/official_models/
+เปลี่ยนรุ่นโมเดล = วางโฟลเดอร์ใหม่แล้วแก้ MODEL_DIR บรรทัดเดียว
 """
 
 import sys
+from pathlib import Path
 
 MODEL_NAME = "th_PP-OCRv5_mobile_rec"
+MODEL_DIR = Path(__file__).parent / "model" / "th_plate_rec"
 ENABLE_MKLDNN = False  # ARM64 ไม่มี oneDNN อยู่แล้ว บน x86 ปิดไว้ให้ผลนิ่ง
 CPU_THREADS = 1  # เกิน 1 = segfault บน Pi
 
@@ -32,8 +35,14 @@ def _load():
         import numpy as np
         from paddleocr import TextRecognition
 
+        # เช็กเองก่อน — model_dir ที่ไม่มีจริง paddle บางรุ่นเงียบแล้วไปโหลดตัวทางการมาแทน
+        # กลายเป็นอ่านด้วยคนละโมเดลโดยไม่มีใครรู้
+        if not MODEL_DIR.is_dir():
+            raise FileNotFoundError(f"ไม่พบโมเดล OCR ที่ {MODEL_DIR}")
+
         _ocr = TextRecognition(
             model_name=MODEL_NAME,
+            model_dir=str(MODEL_DIR),
             enable_mkldnn=ENABLE_MKLDNN,
             cpu_threads=CPU_THREADS,
         )

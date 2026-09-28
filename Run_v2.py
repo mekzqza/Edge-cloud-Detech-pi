@@ -20,11 +20,17 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from envfile import load_dotenv
+
+load_dotenv()
+
 # หมายเหตุ: การปิด autoinstall ของ ultralytics ย้ายไปอยู่ใน detect.py แล้ว (ต้องตั้งก่อน
 # import ultralytics ซึ่งเกิดที่นั่นที่เดียว) ที่นี่ตั้งไม่ทันเพราะ detect ถูก import แบบ lazy
 
 # ===== ตั้งค่า =====
-API_URL = "https://edge-cloud-detect.sukpat.dev/api/detections"
+# URL/คีย์ backend อยู่ใน .env เท่านั้น (ดู .env.example) — repo เปิดสาธารณะ ใครเห็น URL ก็ยิงป้ายปลอมเข้ามาได้
+API_URL = os.environ.get("API_URL", "")
+API_KEY = os.environ.get("API_KEY", "")  # ว่าง = ไม่ส่ง header (backend ยังไม่เช็คคีย์)
 UNSEND_DIR = Path("/home/pi/pi-edge_cloud/unsend")  # โฟลเดอร์รูปรอส่ง
 SENT_DIR = Path("/home/pi/pi-edge_cloud/send")  # ย้ายมาที่นี่เมื่อส่งสำเร็จ
 POLL_INTERVAL = 3  # วนเช็คทุกกี่วินาที
@@ -34,7 +40,7 @@ IMG_EXTS = {".jpg", ".jpeg", ".png"}
 YOLO_LOG = Path("/home/pi/Yolo_log.txt")  # log เฉพาะตอน YOLO เจอป้าย
 FAILED_LOG = Path("/home/pi/filed_to_send.txt")  # log ตอนส่งขึ้น backend ไม่สำเร็จ
 
-DETECT_CONF = 0.3  # default ของ detect.py คือ 0.70 สูงไปสำหรับป้ายไกลๆ
+DETECT_CONF = 0.7
 # ป้ายที่กว้างไม่ถึง ~40 px หลังย่อเป็น imgsz แล้ว YOLO มองไม่เห็น — กล้องที่ติดไกลกว่า
 # ต้องใช้ imgsz ใหญ่ขึ้นแลกกับเวลา แต่ปรับตอนรันไม่ได้: ไฟล์ .onnx ตรึง input shape ไว้ตายตัว
 # เปลี่ยนขนาด = เปลี่ยนไฟล์โมเดล แก้ MODEL + IMGSZ ใน detect.py พร้อมกัน
@@ -320,7 +326,8 @@ def post_detection(
     }
 
     try:
-        res = requests.post(API_URL, json=payload, timeout=15)
+        headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
+        res = requests.post(API_URL, json=payload, headers=headers, timeout=15)
     except requests.RequestException as e:
         # เน็ตหลุด/backend ล่ม = คืน False ไม่ใช่ raise — ไฟล์ค้างไว้รอบหน้าลองใหม่
         # ถ้าปล่อยให้ raise จะไปโดน except ของ main() ซึ่งตีความว่า "ข้อมูลเสีย" แล้วทิ้ง
@@ -920,6 +927,9 @@ if __name__ == "__main__":
             truth_path,
         )
     else:
+        # เช็คเฉพาะโหมดส่งจริง — --check/--batch/--lag ไม่ยิง backend ไม่ต้องมี
+        if not API_URL:
+            sys.exit("ไม่มี API_URL — ก๊อป .env.example เป็น .env แล้วใส่ URL backend")
         try:
             main()
         except KeyboardInterrupt:
